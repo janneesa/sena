@@ -1,0 +1,25 @@
+# General
+.idea/
+.vscode/
+.env
+config/local.toml
+*.log
+
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# Data files
+data/*.db
+data/*.json
+!data/.gitkeep
+
+# Configs
+config/system.md

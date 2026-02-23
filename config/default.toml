@@ -1,0 +1,30 @@
+# ZenBot Default Configuration
+# This file contains the default settings for ZenBot.
+# To override these values, create a config/local.toml file or set environment variables.
+# See .env.example for environment variable documentation.
+
+[llm]
+# The name of the LLM model to use (must be available in Ollama)
+model = "ministral-3:14b"
+
+# Whether to stream token responses (true) or wait for full response (false)
+stream = true
+
+# Enable extended thinking mode for models that support it
+think = false
+
+[agent]
+# Maximum number of internal state transitions per drain() call
+# Prevents infinite loops if a state machine gets stuck
+max_internal_steps = 10
+
+# Maximum number of non-system messages to keep in conversation history
+# Older messages are trimmed when this limit is exceeded
+max_history_messages = 20
+
+# Enable DEBUG-level logging for state transitions and configuration
+# When false, only INFO level and above are logged
+debug = false
+
+# Background reminder polling interval in seconds
+reminder_poll_seconds = 30
