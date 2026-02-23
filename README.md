@@ -3,11 +3,9 @@
 ZenBot is a synchronous state-machine AI agent project built with Python and Ollama.
 This project explores how AI agents and large language models can be integrated into practical software applications through a synchronous, state-machine architecture.
 
-<video controls loop autoplay muted playsinline>
+<video loop autoplay muted playsinline>
 	<source src="media/zenbot_terminal_demo.mp4" type="video/mp4">
 </video>
-
-Video: [media/zenbot_terminal_demo.mp4](media/zenbot_terminal_demo.mp4)
 
 ## Philosophy
 

@@ -181,14 +181,15 @@ def format_reminder_when(iso_datetime: str, now: datetime | None = None) -> str:
     if parsed.tzinfo is None:
         parsed = parsed.replace(tzinfo=timezone.utc)
 
-    local_dt = parsed.astimezone()
-
     if now is None:
+        local_dt = parsed.astimezone()
         now_local = datetime.now().astimezone()
     else:
         if now.tzinfo is None:
-            now = now.replace(tzinfo=local_dt.tzinfo)
-        now_local = now.astimezone(local_dt.tzinfo)
+            now = now.replace(tzinfo=parsed.tzinfo)
+        local_tz = now.tzinfo
+        local_dt = parsed.astimezone(local_tz)
+        now_local = now.astimezone(local_tz)
 
     today = now_local.date()
     target_date = local_dt.date()
