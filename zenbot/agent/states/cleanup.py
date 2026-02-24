@@ -3,7 +3,7 @@
 This state is the final step in a turn: commit history and reset transient state,
 then transition back to Idle (rest state).
 
-All user-facing output is handled by OutputManager during earlier states.
+All user-facing output is handled by the communication manager during earlier states.
 This state performs only internal housekeeping.
 """
 

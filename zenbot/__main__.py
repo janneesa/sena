@@ -18,10 +18,10 @@ import time
 
 from zenbot.agent import Agent
 from zenbot.agent.config import load_settings
-from zenbot.agent.workers import InputWorker, ReminderWorker
+from zenbot.agent.workers import ReminderWorker
+from zenbot.agent.workers.terminal_communication_manager import terminal_communication_manager
 from zenbot.agent.utils.database import DatabaseHelper, get_database_path
 from zenbot.agent.utils.logging import get_logger
-from zenbot.agent.utils.output import output_manager
 
 
 logger = get_logger("zenbot")
@@ -37,7 +37,7 @@ def main() -> None:
         settings = load_settings()
     except (RuntimeError, ValueError) as e:
         logger.error(f"Configuration error: {e}")
-        output_manager.emit_text(f"Configuration error: {e}")
+        terminal_communication_manager.emit_text(f"Configuration error: {e}")
         return
     
     agent = Agent(settings=settings)
@@ -50,14 +50,12 @@ def main() -> None:
         poll_seconds=settings.agent.reminder_poll_seconds,
     )
     stop_event = threading.Event()
-    input_worker = InputWorker(agent=agent, stop_event=stop_event)
-
     reminder_worker.start()
-    input_worker.start()
+    terminal_communication_manager.start(agent=agent, stop_event=stop_event)
     logger.info("ZenBot started and workers initialized")
 
-    output_manager.emit_text("ZenBot (type 'exit' to quit)")
-    output_manager.emit_text("")
+    terminal_communication_manager.emit_text("ZenBot (type 'exit' to quit)")
+    terminal_communication_manager.emit_text("")
 
     # Main loop: process events until stop requested
     try:
@@ -71,7 +69,7 @@ def main() -> None:
             agent.process_queued_events()
     finally:
         stop_event.set()
-        input_worker.stop()
+        terminal_communication_manager.stop()
         reminder_worker.stop()
         logger.info("ZenBot shutdown complete")
 
