@@ -22,7 +22,7 @@ from zenbot.agent.tools import (
 from zenbot.agent.types import Event, EventType, Turn
 from zenbot.agent.utils.helpers import get_system_instructions_path
 from zenbot.agent.utils.logging import configure_logging, get_logger
-from zenbot.agent.utils.output import output_manager
+from zenbot.agent.workers.terminal_communication_manager import terminal_communication_manager
 
 
 logger = get_logger("zenbot")
@@ -37,7 +37,7 @@ class Agent:
         self.state = Idle()
         self._next_state = None
 
-        self.output = output_manager
+        self.output = terminal_communication_manager
 
         self.toolbox = Toolbox()
         self._register_builtin_tools()

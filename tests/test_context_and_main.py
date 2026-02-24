@@ -1,4 +1,5 @@
 import tempfile
+import threading
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
@@ -6,7 +7,7 @@ from unittest.mock import MagicMock, patch
 
 import zenbot.__main__ as app_main
 from zenbot.agent.context import load_system_message
-from zenbot.agent.types import EventType
+from zenbot.agent.types import Event, EventType
 
 
 class TestContextBuilder(unittest.TestCase):
@@ -48,12 +49,8 @@ class TestMain(unittest.TestCase):
     @patch("zenbot.__main__.ReminderWorker")
     @patch("zenbot.__main__.DatabaseHelper")
     @patch("zenbot.__main__.load_settings")
-    @patch("zenbot.__main__.output_manager")
-    @patch("builtins.input", side_effect=["hello", "exit"])
     def test_main_dispatches_user_event(
         self,
-        input_mock,
-        output_mock,
         load_settings_mock,
         _db_cls_mock,
         worker_cls_mock,
@@ -67,8 +64,26 @@ class TestMain(unittest.TestCase):
         agent_cls_mock.return_value = agent_instance
         worker_instance = MagicMock()
         worker_cls_mock.return_value = worker_instance
+        preset_stop_event = threading.Event()
+        preset_stop_event.set()
 
-        app_main.main()
+        with patch("zenbot.__main__.threading.Event", return_value=preset_stop_event):
+            with (
+                patch.object(app_main.terminal_communication_manager, "start") as start_mock,
+                patch.object(app_main.terminal_communication_manager, "stop") as stop_mock,
+                patch.object(app_main.terminal_communication_manager, "emit_text") as emit_text_mock,
+            ):
+                def start_side_effect(agent, stop_event):
+                    _ = stop_event
+                    agent.enqueue_event(Event(event_type=EventType.USER_MESSAGE, payload="hello"))
+
+                start_mock.side_effect = start_side_effect
+
+                app_main.main()
+
+                start_mock.assert_called_once()
+                stop_mock.assert_called_once()
+                emit_text_mock.assert_any_call("ZenBot (type 'exit' to quit)")
 
         self.assertEqual(agent_instance.enqueue_event.call_count, 1)
         event = agent_instance.enqueue_event.call_args[0][0]
@@ -77,11 +92,10 @@ class TestMain(unittest.TestCase):
         self.assertGreaterEqual(agent_instance.process_queued_events.call_count, 1)
         worker_instance.start.assert_called_once()
         worker_instance.stop.assert_called_once()
-        output_mock.emit_text.assert_any_call("ZenBot (type 'exit' to quit)")
 
     @patch("zenbot.__main__.load_settings", side_effect=RuntimeError("bad config"))
-    @patch("zenbot.__main__.output_manager")
-    def test_main_prints_config_error(self, output_mock, _load_settings_mock):
+    def test_main_prints_config_error(self, _load_settings_mock):
         # Verifies configuration failures are shown to the user.
-        app_main.main()
-        output_mock.emit_text.assert_any_call("Configuration error: bad config")
+        with patch.object(app_main.terminal_communication_manager, "emit_text") as emit_text_mock:
+            app_main.main()
+        emit_text_mock.assert_any_call("Configuration error: bad config")

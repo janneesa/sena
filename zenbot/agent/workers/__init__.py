@@ -1,6 +1,6 @@
 """Background workers for ZenBot."""
 
-from zenbot.agent.workers.input_worker import InputWorker
 from zenbot.agent.workers.reminder_worker import ReminderWorker
+from zenbot.agent.workers.terminal_communication_manager import TerminalCommunicationManager
 
-__all__ = ["InputWorker", "ReminderWorker"]
+__all__ = ["ReminderWorker", "TerminalCommunicationManager"]
