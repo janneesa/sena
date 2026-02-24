@@ -128,7 +128,7 @@ class TerminalCommunicationManager(CommunicationManager):
     def _run_input_loop(self) -> None:
         while self._stop_event is not None and not self._stop_event.is_set():
             try:
-                raw = self._read_input("> ")
+                raw = self._read_input(self._input_prompt)
             except (EOFError, StopIteration):
                 if self._stop_event is not None:
                     self._stop_event.set()
