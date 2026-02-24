@@ -6,7 +6,7 @@ from zenbot.agent.states.cleanup import Cleanup
 from zenbot.agent.states.generate import Generate
 from zenbot.agent.states.idle import Idle
 from zenbot.agent.states.task import Task
-from zenbot.agent.states.tools import UseTools
+from zenbot.agent.states.use_tools import UseTools
 from zenbot.agent.types import Event, EventType, Turn
 
 
@@ -151,7 +151,7 @@ class TestUseToolsState(unittest.TestCase):
 
 
 class TestTaskState(unittest.TestCase):
-    @patch("zenbot.agent.states.task.ollama.chat")
+    @patch("zenbot.agent.workers.handlers.due_reminder.ollama.chat")
     def test_reminder_due_generates_message(self, chat_mock):
         # Verifies Task generates a friendly reminder message.
         # (Reminder is already marked completed by the worker, not deleted here)
@@ -173,7 +173,7 @@ class TestTaskState(unittest.TestCase):
         self.assertEqual(agent.turn.assistant_text, "Hey, it's time to drink water.")
         agent.output.emit_text.assert_called_once_with("Hey, it's time to drink water.")
 
-    @patch("zenbot.agent.states.task.ollama.chat")
+    @patch("zenbot.agent.workers.handlers.due_reminder.ollama.chat")
     def test_reminder_without_payload_transitions_to_cleanup(self, chat_mock):
         # Verifies Task transitions to Cleanup when no reminder payload is set.
         agent = _fake_agent(stream=False)

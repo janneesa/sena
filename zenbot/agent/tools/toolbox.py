@@ -30,7 +30,10 @@ class Toolbox:
 
 
     def get_ollama_tool_functions(self) -> list[Callable[..., dict[str, Any]]]:
-        """Return tool functions compatible with the Ollama Python SDK."""
+        """Return tool functions compatible with the Ollama Python SDK.
+        
+        The description property of each Tool is assigned as __doc__ for Ollama's tool converter.
+        """
         tool_functions: list[Callable[..., dict[str, Any]]] = []
         for tool in self._tools.values():
             def _wrapper(*, _t: Tool = tool, **kwargs: Any) -> dict[str, Any]:
@@ -43,7 +46,7 @@ class Toolbox:
             ]
 
             _wrapper.__name__ = tool.name
-            _wrapper.__doc__ = (tool.__doc__ or "").strip()
+            _wrapper.__doc__ = tool.description
             _wrapper.__signature__ = inspect.Signature(params)
             tool_functions.append(_wrapper)
 

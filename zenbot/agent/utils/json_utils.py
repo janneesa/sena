@@ -12,8 +12,7 @@ T = TypeVar("T", bound=BaseModel)
 
 
 def safe_parse_json(raw: Any) -> dict[str, Any]:
-    """
-    Parse raw arguments to a dictionary, handling string JSON and nested dicts.
+    """Parse raw arguments to a dictionary, handling string JSON and nested dicts.
     
     Args:
         raw: Raw argument data (dict, string, or other).
@@ -27,10 +26,9 @@ def safe_parse_json(raw: Any) -> dict[str, Any]:
     if isinstance(raw, str):
         try:
             parsed = json.loads(raw)
-            if isinstance(parsed, dict):
-                return parsed
+            return parsed if isinstance(parsed, dict) else {}
         except json.JSONDecodeError:
-            pass
+            return {}
     
     return {}
 

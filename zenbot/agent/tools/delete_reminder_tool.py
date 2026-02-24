@@ -61,21 +61,17 @@ class DeleteConfirmation(BaseModel):
 
 
 class DeleteReminderTool(Tool):
-    """
-    Tool to delete an existing reminder when the user asks to remove or cancel one.
+    """Delete reminders matched from a natural-language request.
 
-    Examples:
-    - "Delete my water reminder"
-    - "Remove the reminder about emails"
-    - "Cancel reminder number 2"
-
-    Additional notes:
-    - Pass the user's deletion request in `request`; matching is handled by the tool.
-    - The tool verifies the match, deletes the reminder, and returns a confirmation.
-    - Includes best-effort cleanup of past reminders after successful deletion.
+    Dev notes:
+    - Workflow: DeleteReminderArgs -> ReminderMatch (LLM match) -> DB delete -> DeleteConfirmation.
+    - Uses LLM to identify which reminder the user wants to delete (by task, time, or position).
+    - Applies deterministic confidencefiltering and DB operations.
+    - Returns confirmation with deleted reminder details.
     """
 
     name = "delete_reminder"
+    description = "Tool to delete or cancel a reminder when the user wants to remove a specific reminder. Examples: 'Delete my water reminder', 'Cancel my 5pm meeting reminder', 'Remove the email check reminder'"
     user_message = "Deleting your reminder..."
     ArgsModel = DeleteReminderArgs
 
@@ -85,15 +81,7 @@ class DeleteReminderTool(Tool):
         self.db = DatabaseHelper(get_database_path())
 
     def run(self, args: DeleteReminderArgs) -> dict[str, object]:
-        """Execute the delete reminder workflow: match, delete, confirm, cleanup old reminders.
-        
-        Args:
-            args: DeleteReminderArgs containing the user's deletion request.
-        
-        Returns:
-            dict with either success confirmation or error details.
-        """
-        # Step 1: Get all active reminders
+        """Match one reminder, delete it, and confirm."""
         reminders = self.db.get_all_reminders(include_completed=False)
         
         if not reminders:
@@ -102,7 +90,6 @@ class DeleteReminderTool(Tool):
                 "error": "You don't have any active reminders to delete."
             }
         
-        # Step 2: Use LLM to match user's request to a specific reminder
         match = self._match_reminder(args.request, reminders)
         if match is None:
             logger.warning("tool=delete_reminder event=match_failed")
@@ -110,7 +97,6 @@ class DeleteReminderTool(Tool):
                 "error": "Could not identify which reminder you want to delete. Please be more specific."
             }
         
-        # Step 3: Verify the reminder exists and get its details
         reminder = self.db.get_reminder(match.reminder_id)
         if reminder is None:
             logger.warning(f"tool=delete_reminder event=matched_missing_id reminder_id={match.reminder_id}")
@@ -118,7 +104,6 @@ class DeleteReminderTool(Tool):
                 "error": "The matched reminder could not be found in the database."
             }
         
-        # Step 4: Delete the reminder
         try:
             deleted = self.db.delete_reminder(match.reminder_id)
             if not deleted:
@@ -132,10 +117,8 @@ class DeleteReminderTool(Tool):
                 "error": f"Could not delete reminder due to error: {exc}"
             }
         
-        # Step 5: Auto-cleanup any past reminders
         self._cleanup_past_reminders()
-        
-        # Step 6: Generate confirmation message
+
         confirmation = self._build_confirmation(reminder)
         
         return {
@@ -150,13 +133,13 @@ class DeleteReminderTool(Tool):
 
     def _match_reminder(self, user_request: str, reminders: list[dict[str, Any]]) -> ReminderMatch | None:
         """Use LLM to match user's deletion request to a specific reminder."""
-        # Build context with all available reminders
-        reminders_context = "Available reminders:\\n"
-        for i, reminder in enumerate(reminders, 1):
-            reminders_context += f"{i}. ID: {reminder['id']}, Task: {reminder['task']}, When: {reminder['when']}"
-            if reminder.get('notes'):
-                reminders_context += f", Notes: {reminder['notes']}"
-            reminders_context += "\\n"
+        reminder_lines = []
+        for index, reminder in enumerate(reminders, 1):
+            base = f"{index}. ID: {reminder['id']}, Task: {reminder['task']}, When: {reminder['when']}"
+            if reminder.get("notes"):
+                base += f", Notes: {reminder['notes']}"
+            reminder_lines.append(base)
+        reminders_context = "Available reminders:\n" + "\n".join(reminder_lines)
         
         matching_prompt = (
             "You match a user's deletion request to a specific reminder. "
@@ -200,10 +183,7 @@ class DeleteReminderTool(Tool):
         return result.confirmation_message
 
     def _cleanup_past_reminders(self) -> None:
-        """Delete all reminders that are in the past (for automatic housekeeping).
-        
-        Silently handles errors to avoid disrupting the main deletion operation.
-        """
+        """Best-effort cleanup for reminders already in the past."""
         try:
             reminders = self.db.get_all_reminders(include_completed=False)
             deleted_count = 0
@@ -217,6 +197,5 @@ class DeleteReminderTool(Tool):
             if deleted_count:
                 logger.info(f"tool=delete_reminder event=cleanup_deleted count={deleted_count}")
         except Exception:
-            # Silently ignore cleanup errors - they're not critical to the deletion
             logger.exception("tool=delete_reminder event=cleanup_failed")
 

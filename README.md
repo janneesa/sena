@@ -22,6 +22,17 @@ This project explores how AI agents and large language models can be integrated 
 - SQLite persistence for reminders
 - Config via TOML + environment variables
 
+## Data Models (where they are used)
+
+- `zenbot/agent/types.py`
+  - `EventType` / `Event`: queued inputs to the state machine (`USER_MESSAGE`, `REMINDER_DUE`, `TICK`).
+  - `Turn`: temporary per-turn working state for `Generate` and `UseTools`.
+- Tool-specific Pydantic models in `zenbot/agent/tools/*`
+  - `*Args` models validate tool call inputs.
+  - Extraction/confirmation models (for example `ReminderRequest`, `ReminderMatch`) validate structured LLM JSON before any DB writes.
+- Config dataclasses in `zenbot/agent/config.py`
+  - `Settings`, `LLMSettings`, `AgentSettings` are immutable startup config loaded once.
+
 ## Quick Start
 
 Prerequisites:

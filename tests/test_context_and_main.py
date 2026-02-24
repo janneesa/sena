@@ -5,7 +5,7 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import zenbot.__main__ as app_main
-from zenbot.agent.context import ContextBuilder
+from zenbot.agent.context import load_system_message
 from zenbot.agent.types import EventType
 
 
@@ -14,8 +14,7 @@ class TestContextBuilder(unittest.TestCase):
         # Verifies a safe default system prompt is returned when files are missing.
         with tempfile.TemporaryDirectory() as tmp:
             override = Path(tmp) / "system.md"
-            builder = ContextBuilder(override)
-            self.assertEqual(builder.build_system_message(), "You are a helpful AI assistant.")
+            self.assertEqual(load_system_message(override), "You are a helpful AI assistant.")
 
     def test_default_used_when_override_missing(self):
         # Verifies default_system.md is used when override is missing.
@@ -23,8 +22,7 @@ class TestContextBuilder(unittest.TestCase):
             default_path = Path(tmp) / "default_system.md"
             default_path.write_text("default content", encoding="utf-8")
             override = Path(tmp) / "system.md"
-            builder = ContextBuilder(override)
-            self.assertEqual(builder.build_system_message(), "default content")
+            self.assertEqual(load_system_message(override), "default content")
 
     def test_override_used_when_nonempty(self):
         # Verifies system.md overrides default_system.md when non-empty.
@@ -33,8 +31,7 @@ class TestContextBuilder(unittest.TestCase):
             default_path.write_text("default content", encoding="utf-8")
             override = Path(tmp) / "system.md"
             override.write_text("override content", encoding="utf-8")
-            builder = ContextBuilder(override)
-            self.assertEqual(builder.build_system_message(), "override content")
+            self.assertEqual(load_system_message(override), "override content")
 
     def test_empty_override_uses_default(self):
         # Verifies empty override falls back to default.
@@ -43,8 +40,7 @@ class TestContextBuilder(unittest.TestCase):
             default_path.write_text("default content", encoding="utf-8")
             override = Path(tmp) / "system.md"
             override.write_text("\n\n", encoding="utf-8")
-            builder = ContextBuilder(override)
-            self.assertEqual(builder.build_system_message(), "default content")
+            self.assertEqual(load_system_message(override), "default content")
 
 
 class TestMain(unittest.TestCase):
