@@ -12,6 +12,8 @@ from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
+from zenbot.agent.utils.helpers import get_project_root
+
 
 class DatabaseHelper:
     """Helper class for SQLite database operations."""
@@ -32,7 +34,6 @@ class DatabaseHelper:
         try:
             cursor = conn.cursor()
             
-            # Create reminders table
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS reminders (
                     id TEXT PRIMARY KEY,
@@ -252,14 +253,5 @@ class DatabaseHelper:
 
 
 def get_database_path() -> Path:
-    """Get the path to the ZenBot database file.
-    
-    Returns:
-        Path: The absolute path to data/zenbot.db in the project root.
-    """
-    # Navigate from utils/ -> agent/ -> zenbot/ -> project_root/
-    utils_dir = Path(__file__).parent
-    agent_dir = utils_dir.parent
-    zenbot_dir = agent_dir.parent
-    project_root = zenbot_dir.parent
-    return project_root / "data" / "zenbot.db"
+    """Return absolute path to `data/zenbot.db`."""
+    return get_project_root() / "data" / "zenbot.db"

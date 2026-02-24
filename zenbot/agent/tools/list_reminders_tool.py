@@ -21,21 +21,16 @@ class ListRemindersArgs(BaseModel):
 
 
 class ListRemindersTool(Tool):
-    """
-    Tool to list active reminders when the user asks what reminders they currently have.
-
-    Examples:
-    - "Show me my reminders"
-    - "What reminders do I have?"
-    - "Can you list my reminders?"
-
-    Additional notes:
-    - This tool is the source of truth for active reminder state.
-    - Do not answer reminder-list requests from memory.
-    - Returns both structured reminder data and a deterministic human-readable summary.
+    """List active reminders from the database.
+    
+    Dev notes:
+    - Returns all non-completed reminders with human-friendly formatting.
+    - Each reminder includes index, task, and formatted time.
+    - Returns empty message if no active reminders exist.
     """
 
     name = "list_reminders"
+    description = "Tool to list all active reminders when the user asks to check, show, or view their reminders. Examples: 'Show me my reminders', 'What reminders do I have?', 'List my reminders'"
     user_message = "Fetching your reminders..."
     ArgsModel = ListRemindersArgs
 
@@ -44,15 +39,7 @@ class ListRemindersTool(Tool):
         self.db = DatabaseHelper(get_database_path())
 
     def run(self, args: ListRemindersArgs) -> dict[str, object]:
-        """List all active reminders.
-        
-        Args:
-            args: ListRemindersArgs (no arguments needed).
-        
-        Returns:
-            dict with reminders list or empty message.
-        """
-        # Get all active reminders (exclude completed)
+        """Return active reminders with human-friendly labels."""
         reminders = self.db.get_all_reminders(include_completed=False)
         
         if not reminders:
@@ -64,12 +51,11 @@ class ListRemindersTool(Tool):
                 "reminders": []
             }
         
-        # Format reminders as numbered list
         formatted_reminders = []
-        for i, reminder in enumerate(reminders, 1):
+        for index, reminder in enumerate(reminders, 1):
             when_human = self._format_when_for_display(str(reminder["when"]))
             formatted_reminders.append({
-                "number": i,
+                "number": index,
                 "task": reminder["task"],
                 "when": reminder["when"],
                 "when_human": when_human,

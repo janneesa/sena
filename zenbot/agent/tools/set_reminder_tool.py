@@ -36,7 +36,7 @@ class SetReminderArgs(BaseModel):
 
 
 class ReminderRequest(BaseModel):
-    """Raw reminder data extracted by LLM (no calculations, no ISO conversion)."""
+    """LLM extraction model used before deterministic date/time calculations."""
 
     task: str = Field(
         ...,
@@ -68,7 +68,7 @@ class ReminderRequest(BaseModel):
 
 
 class ReminderConfirmation(BaseModel):
-    """Structured confirmation message for a newly created reminder."""
+    """LLM output model for final confirmation text."""
 
     confirmation_message: str = Field(
         ...,
@@ -78,21 +78,17 @@ class ReminderConfirmation(BaseModel):
 
 
 class SetReminderTool(Tool):
-    """
-    Tool to create a reminder when the user asks to remember something at a specific time.
+    """Create reminders from natural-language requests.
 
-    Examples:
-    - "Remind me to drink water in 5 minutes"
-    - "Set a reminder for tomorrow at 09:00 to call mom"
-    - "Don't let me forget to submit the report tonight"
-
-    Additional notes:
-    - Pass the full user request in `request`; this tool extracts task/date/time.
-    - Use this tool for all reminder-creation intents instead of simulating creation in plain text.
-    - The tool handles parsing, date resolution, storage, and confirmation.
+    Dev notes:
+    - Workflow: SetReminderArgs -> ReminderRequest (LLM extract) -> deterministic parsing -> DB save.
+    - Uses LLM to extract task, time, date, and notes from user input.
+    - Applies deterministic date/time calculation and timezone handling.
+    - Returns confirmation message with absolute reminder time.
     """
 
     name = "set_reminder"
+    description = "Tool to set or create a reminder for a task when user asks for a reminder to be created. Examples: 'Remind me to drink water at 14:45', 'Remind me to do my homework tomorrow at 19:15'"
     user_message = "Setting your reminder..."
     ArgsModel = SetReminderArgs
 
@@ -102,47 +98,35 @@ class SetReminderTool(Tool):
         self.db = DatabaseHelper(get_database_path())
 
     def run(self, args: SetReminderArgs) -> dict[str, object]:
-        """Execute the reminder workflow: extract, calculate, save, confirm.
-        
-        Args:
-            args: SetReminderArgs containing the user's reminder request.
-        
-        Returns:
-            dict with either success confirmation or error details.
-        """
-        # Step 1: Extract raw values from user request (no calculations)
-        request = self._extract_reminder_request(args.request)
-        if request is None:
+        """Extract, parse, store, and confirm a reminder."""
+        reminder_spec = self._extract_reminder_request(args.request)
+        if reminder_spec is None:
             logger.warning("tool=set_reminder event=extraction_failed")
             return {
                 "error": "Could not extract reminder details. Please specify: what to remind you about, what time, and when (today, tomorrow, or a weekday)."
             }
 
-        # Step 2: Parse time string (e.g., "9:15", "9:15 AM", "14:30")
-        hour, minute = self._parse_time(request.time)
+        hour, minute = self._parse_time(reminder_spec.time)
         if hour is None or minute is None:
-            logger.warning(f"tool=set_reminder event=time_parse_failed input={request.time}")
+            logger.warning(f"tool=set_reminder event=time_parse_failed input={reminder_spec.time}")
             return {
-                "error": f"Could not parse time '{request.time}'. Please use a format like '9:15', '9:15 AM', or '14:30'."
+                "error": f"Could not parse time '{reminder_spec.time}'. Please use a format like '9:15', '9:15 AM', or '14:30'."
             }
 
-        # Step 3: Resolve intended date (e.g., "today", "tomorrow", "monday")
-        target_date = self._resolve_intended_date(request.intended_date)
+        target_date = self._resolve_intended_date(reminder_spec.intended_date)
         if target_date is None:
-            logger.warning(f"tool=set_reminder event=date_resolve_failed input={request.intended_date}")
+            logger.warning(f"tool=set_reminder event=date_resolve_failed input={reminder_spec.intended_date}")
             return {
-                "error": f"Could not interpret date '{request.intended_date}'. Use 'today', 'tomorrow', or a weekday name."
+                "error": f"Could not interpret date '{reminder_spec.intended_date}'. Use 'today', 'tomorrow', or a weekday name."
             }
 
-        # Step 4: Combine date and time into ISO datetime
         due_iso = self._combine_date_and_time(target_date, hour, minute)
 
-        # Step 5: Save reminder to database
         try:
             record = self.db.add_reminder(
-                task=request.task,
+                task=reminder_spec.task,
                 when=due_iso,
-                notes=request.notes
+                notes=reminder_spec.notes,
             )
         except Exception as exc:
             logger.exception("tool=set_reminder event=db_save_failed")
@@ -150,9 +134,8 @@ class SetReminderTool(Tool):
                 "error": f"Could not save reminder due to storage error: {exc}"
             }
 
-        # Step 6: Generate user-friendly confirmation message
         confirmation = self._build_confirmation(
-            task=request.task,
+            task=reminder_spec.task,
             target_date=target_date,
             hour=hour,
             minute=minute
@@ -162,7 +145,7 @@ class SetReminderTool(Tool):
             "success": True,
             "confirmation": confirmation,
             "reminder_id": record["id"],
-            "task": request.task,
+            "task": reminder_spec.task,
             "when": due_iso,
         }
 

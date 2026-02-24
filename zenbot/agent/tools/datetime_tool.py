@@ -12,20 +12,16 @@ class DateTimeArgs(BaseModel):
 
 
 class DateTimeTool(Tool):
-    """
-    Tool to get the current local date and time when the user asks for time or date context.
-
-    Examples:
-    - "What time is it?"
-    - "What's today's date?"
-    - "Tell me the current time"
-
-    Additional notes:
-    - Returns structured time fields (`iso`, `date`, `time`, `timestamp`, `timezone`).
-    - Use this tool for factual current-time answers instead of guessing.
+    """Get the current local date and time.
+    
+    Dev notes:
+    - Used when user asks for time/date context (e.g., "What time is it?").
+    - Returns structured time fields (iso, date, time, timestamp, timezone).
+    - Always available; no initialization needed.
     """
 
     name = "datetime"
+    description = "Tool to get the current date and time when the user asks for time or date context. Examples: 'What time is it?', 'What's today's date?', 'Tell me the current time'"
     user_message = "Checking current date and time..."
     ArgsModel = DateTimeArgs
 

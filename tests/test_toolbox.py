@@ -12,6 +12,7 @@ class EchoArgs(BaseModel):
 
 class EchoTool(Tool):
     name = "echo"
+    description = "Echo a value back."
     user_message = "running"
     ArgsModel = EchoArgs
 
@@ -21,6 +22,7 @@ class EchoTool(Tool):
 
 class FailTool(Tool):
     name = "fail"
+    description = "A tool that always fails."
     user_message = "running"
     ArgsModel = EchoArgs
 

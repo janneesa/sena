@@ -3,21 +3,6 @@
 The Agent manages conversation flow using a state machine pattern, processes events through
 configured states, maintains conversation history with memory limits, and coordinates with
 the LLM backend for response generation.
-
-Configuration is provided via a Settings object that encapsulates all agent and LLM settings.
-Settings can be loaded from TOML files and environment variables using load_settings().
-
-Example usage:
-    from zenbot.agent.config import load_settings
-    from zenbot.agent.agent import Agent
-    
-    settings = load_settings()
-    agent = Agent(settings=settings)
-    
-    # Dispatch a user message
-    event = Event(event_type=EventType.USER_MESSAGE, payload="Hello!")
-    agent.dispatch(event)
-    agent.drain()  # Process through state machine
 """
 
 from __future__ import annotations
@@ -25,7 +10,7 @@ from __future__ import annotations
 from queue import Queue
 
 from zenbot.agent.config import Settings
-from zenbot.agent.context import ContextBuilder
+from zenbot.agent.context import load_system_message
 from zenbot.agent.states.idle import Idle
 from zenbot.agent.tools import (
     DateTimeTool,
@@ -44,23 +29,9 @@ logger = get_logger("zenbot")
 
 
 class Agent:
-    """Synchronous state-machine runtime for chat turns and reminder events.
-
-    The Agent coordinates state transitions (Idle/Generate/UseTools/Task/Cleanup),
-    processes queued external events, registers built-in tools, and maintains
-    bounded conversation history plus per-turn working state.
-    """
+    """Coordinates state transitions, tool execution, and turn history."""
     def __init__(self, settings: Settings):
-        """Initialize the Agent with configuration settings.
-        
-        Configuration, including debug mode and logging behavior, is entirely controlled
-        by the Settings object. The debug flag from settings.agent.debug determines logging
-        level (DEBUG if true; INFO otherwise).
-        
-        Args:
-            settings: A Settings object containing LLM and agent configuration.
-                     Can be loaded from files and environment variables using load_settings().
-        """
+        """Initialize runtime state, tools, and system instructions."""
         configure_logging(debug=settings.agent.debug)
         self.settings = settings
         self.state = Idle()
@@ -71,9 +42,8 @@ class Agent:
         self.toolbox = Toolbox()
         self._register_builtin_tools()
 
-        # Build system message from markdown instructions
-        context_builder = ContextBuilder(get_system_instructions_path())
-        system_message = context_builder.build_system_message()
+        # Load system message from markdown instructions
+        system_message = load_system_message(get_system_instructions_path())
 
         self.messages = [
             {"role": "system", "content": system_message}
@@ -84,39 +54,17 @@ class Agent:
 
     def _register_builtin_tools(self) -> None:
         """Register built-in tools available to the agent."""
-        self.toolbox.register(DateTimeTool())
-        logger.debug("Registered tool: datetime")
-        
-        # Configure and register reminder tools
-        reminder_tool = SetReminderTool()
-        reminder_tool.settings = self.settings
-        self.toolbox.register(reminder_tool)
-        logger.debug("Registered tool: set_reminder")
-        
-        list_tool = ListRemindersTool()
-        list_tool.settings = self.settings
-        self.toolbox.register(list_tool)
-        logger.debug("Registered tool: list_reminders")
-        
-        delete_tool = DeleteReminderTool()
-        delete_tool.settings = self.settings
-        self.toolbox.register(delete_tool)
-        logger.debug("Registered tool: delete_reminder")
+        for tool_class in (DateTimeTool, SetReminderTool, ListRemindersTool, DeleteReminderTool):
+            tool = tool_class()
+            if hasattr(tool, "settings"):
+                tool.settings = self.settings
+            self.toolbox.register(tool)
+            logger.debug(f"Registered tool: {tool.name}")
 
     def dispatch(self, event: Event) -> None:
-        """Handle an external event and transition the state machine.
-        
-        This method processes an event using the current state's handle() method and stores
-        the result as the next pending state. The state machine does not actually transition
-        until drain() is called.
-        
-        Args:
-            event: The Event to process (typically USER_MESSAGE from the main loop).
-        """
-        if event.event_type == EventType.USER_MESSAGE:
-            logger.debug("Dispatching USER_MESSAGE")
-        if event.event_type == EventType.REMINDER_DUE:
-            logger.debug("Dispatching REMINDER_DUE")
+        """Handle an external event and set the next pending state."""
+        if event.event_type in (EventType.USER_MESSAGE, EventType.REMINDER_DUE):
+            logger.debug(f"Dispatching {event.event_type.value.upper()}")
         self._next_state = self.state.handle(self, event)
 
     def enqueue_event(self, event: Event) -> None:
@@ -128,12 +76,8 @@ class Agent:
         return not self.event_queue.empty()
 
     def process_next_queued_event(self) -> bool:
-        """Process one queued event through dispatch + drain.
-
-        Returns:
-            bool: True if one event was processed, False if queue was empty.
-        """
-        if self.event_queue.empty():
+        """Process a single queued event through dispatch + drain."""
+        if not self.has_queued_events():
             return False
         event = self.event_queue.get()
         self.dispatch(event)
@@ -141,27 +85,15 @@ class Agent:
         return True
 
     def process_queued_events(self) -> int:
-        """Process all queued events until the queue is empty.
-
-        Returns:
-            int: Number of processed events.
-        """
+        """Drain the external event queue and return processed count."""
         processed = 0
-        while self.process_next_queued_event():
+        while self.has_queued_events():
+            self.process_next_queued_event()
             processed += 1
         return processed
 
     def drain(self) -> None:
-        """Execute pending state transitions until reaching Idle or hitting step limit.
-        
-        This method runs the state machine's internal loop: it transitions to pending states
-        and feeds them TICK events to drive async actions (like LLM generation) until:
-        - The machine returns to Idle state, OR
-        - The maximum internal steps limit is reached (to prevent infinite loops).
-        
-        The step limit is configured via settings.agent.max_internal_steps.
-        Used after dispatch() to run the state machine until quiescent.
-        """
+        """Apply pending transitions until Idle or step budget is reached."""
         steps = 0
         while self._next_state is not None and steps < self.settings.agent.max_internal_steps:
             self.state = self._next_state
@@ -176,13 +108,10 @@ class Agent:
             self._next_state = self.state.handle(self, tick)
             steps += 1
 
-        # If we reached the step limit exactly while the next transition is Idle,
-        # finalize it here to avoid leaving the machine in a non-idle state.
         if self._next_state is not None and isinstance(self._next_state, Idle):
             self.state = self._next_state
             self._next_state = None
 
-        # Hard guard: recover safely if we're still not done after the step budget.
         if self._next_state is not None and steps >= self.settings.agent.max_internal_steps:
             logger.warning("Max internal steps reached")
             self.output.emit_text(
@@ -198,13 +127,7 @@ class Agent:
             self._next_state = None
 
     def commit_turn(self) -> None:
-        """Commit the current turn (user input + assistant response) to message history.
-        
-        Appends the user's text and assistant's response to self.messages if both are non-empty.
-        After committing, trims the history to the maximum allowed size and resets the turn.
-        
-        This is called by the Generate state after the LLM produces a response.
-        """
+        """Commit user/assistant text to history when both are non-empty."""
         user_text = self.turn.user_text.strip()
         assistant_text = self.turn.assistant_text.strip()
 
@@ -212,21 +135,14 @@ class Agent:
             self.reset_turn()
             return
 
-        logger.debug("Turn committed")
         self.messages.append({"role": "user", "content": user_text})
         self.messages.append({"role": "assistant", "content": assistant_text})
+        logger.debug("Turn committed")
         self._trim_history()
         self.reset_turn()
 
     def _trim_history(self) -> None:
-        """Trim message history to maximum size, keeping system message + most recent turns.
-        
-        Preserves the system message at index 0 and keeps only the last max_history_messages
-        of the remaining history. This prevents unbounded memory growth over long conversations.
-        
-        The history size limit is configured via settings.agent.max_history_messages.
-        Internal method; called automatically after commit_turn().
-        """
+        """Keep system message and the latest configured history window."""
         if not self.messages:
             return
 
@@ -238,17 +154,5 @@ class Agent:
         self.messages = [system_message] + history[-self.settings.agent.max_history_messages :]
 
     def reset_turn(self) -> None:
-        """Reset the current turn without committing to history.
-        
-        Clears user_text, assistant_text, assistant streaming flag,
-        pending_tool_calls, tool_results, and
-        working LLM messages from the current turn.
-        This can be used to discard an in-progress turn if needed.
-        """
-        self.turn.user_text = ""
-        self.turn.assistant_text = ""
-        self.turn.reminder_due_payload = None
-        self.turn.assistant_streamed = False
-        self.turn.pending_tool_calls.clear()
-        self.turn.tool_results.clear()
-        self.turn.llm_messages.clear()
+        """Reset ephemeral turn state."""
+        self.turn = Turn()

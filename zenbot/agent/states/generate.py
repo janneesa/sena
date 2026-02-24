@@ -1,4 +1,4 @@
-"""Generate state for LLM response generation."""
+"""State that asks the LLM for the next assistant step."""
 
 from __future__ import annotations
 
@@ -15,21 +15,9 @@ logger = get_logger("zenbot")
 
 
 class Generate(State):
-    """State that generates an LLM response to the user's message.
-    
-    The Generate state receives TICK events, calls the LLM, and decides the next phase:
-    - If tools are requested -> transition to UseTools.
-    - If no tools are requested -> transition to Cleanup.
-    
-    This state ignores non-TICK events and returns itself if not yet activated.
-    """
+    """Generate assistant output and queue tool calls when requested."""
     @property
     def name(self):
-        """Return the human-readable name of this state.
-        
-        Returns:
-            str: The name 'GENERATE'.
-        """
         return "GENERATE"
 
     def handle(self, agent, event):
@@ -38,7 +26,6 @@ class Generate(State):
             logger.debug("Generate ignoring non-TICK event")
             return self
 
-        # Ensure the LLM has the full conversation history plus the latest user message
         if not agent.turn.llm_messages:
             agent.turn.llm_messages = list(agent.messages)
             agent.turn.llm_messages.append({"role": "user", "content": agent.turn.user_text})
@@ -47,7 +34,6 @@ class Generate(State):
         tools = agent.toolbox.get_ollama_tool_functions()
         logger.debug(f"Generate calling LLM with {len(tools)} available tools")
 
-        # Call the LLM with the current messages and available tools
         try:
             response = ollama.chat(
                 model=agent.settings.llm.model,
@@ -63,13 +49,11 @@ class Generate(State):
             agent.output.emit_text(error_message)
             return Cleanup()
 
-        # Process response based on streaming mode
         if agent.settings.llm.stream:
             response = self._process_streamed_response(agent, response)
         
         self._handle_response(agent, response)
 
-        # Check for tool calls and transition accordingly
         response_message = response.get("message", {})
         tool_calls = response_message.get("tool_calls") or []
 
@@ -78,7 +62,7 @@ class Generate(State):
             agent.turn.assistant_streamed = False
             agent.turn.llm_messages.append(response_message)
             self._enqueue_tool_calls(agent, tool_calls)
-            from zenbot.agent.states.tools import UseTools
+            from zenbot.agent.states.use_tools import UseTools
             return UseTools()
 
         return Cleanup()
@@ -122,12 +106,7 @@ class Generate(State):
         }
 
     def _handle_response(self, agent, response: dict) -> None:
-        """Handle non-tool response message (emit to output).
-        
-        Args:
-            agent: The Agent instance.
-            response: Response dict from LLM.
-        """
+        """Persist assistant text and emit output for non-tool responses."""
         response_message = response.get("message", {})
         tool_calls = response_message.get("tool_calls") or []
 
