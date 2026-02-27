@@ -1,5 +1,5 @@
-# ZenBot Default Configuration
-# This file contains the default settings for ZenBot.
+# Sena Default Configuration
+# This file contains the default settings for Sena.
 # To override these values, create a config/local.toml file or set environment variables.
 # See .env.example for environment variable documentation.
 

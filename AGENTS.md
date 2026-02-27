@@ -1,4 +1,4 @@
-# ZenBot: Guide for Coding Agents
+# Sena: Guide for Coding Agents
 
 Synchronous state-machine AI agent framework.
 Python 3.13+. Default Ollama endpoint: `localhost:11434`.
@@ -22,13 +22,13 @@ Standard library usage (core):
 Use `uv` for dependency management.
 
 - `uv sync` install dependencies
-- `uv run python -m zenbot` run project
+- `uv run python -m sena` run project
 
 Do not edit dependencies directly; use `uv` to update `pyproject.toml`.
 
 ## Core Architecture
 
-ZenBot is driven by a synchronous state machine.
+Sena is driven by a synchronous state machine.
 
 The Agent owns state transitions, event dispatch, the TICK loop, history trimming,
 configuration injection, and logging. States implement behavior but do not control
@@ -78,7 +78,7 @@ Do not log LLM token streams or sensitive data.
 Reusable datetime parsing and calculations:
 
 ```python
-from zenbot.agent.utils.datetime_utils import (
+from sena.agent.utils.datetime_utils import (
     parse_time_string,           # "9:15", "3:45 PM" -> (9, 15)
     resolve_date_expression,     # "tomorrow", "monday" -> date object
     combine_date_and_time,       # Merge into ISO-8601 with timezone

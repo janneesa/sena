@@ -2,12 +2,12 @@ import unittest
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
-from zenbot.agent.states.cleanup import Cleanup
-from zenbot.agent.states.generate import Generate
-from zenbot.agent.states.idle import Idle
-from zenbot.agent.states.task import Task
-from zenbot.agent.states.use_tools import UseTools
-from zenbot.agent.types import Event, EventType, Turn
+from sena.agent.states.cleanup import Cleanup
+from sena.agent.states.generate import Generate
+from sena.agent.states.idle import Idle
+from sena.agent.states.task import Task
+from sena.agent.states.use_tools import UseTools
+from sena.agent.types import Event, EventType, Turn
 
 
 def _fake_agent(stream: bool = False) -> SimpleNamespace:
@@ -68,7 +68,21 @@ class TestCleanupState(unittest.TestCase):
 
 
 class TestGenerateState(unittest.TestCase):
-    @patch("zenbot.agent.states.generate.ollama.chat")
+    @patch("sena.agent.states.generate.ollama.chat")
+    def test_sanitizes_surrogate_chars_before_chat(self, chat_mock):
+        # Verifies invalid surrogate code points are sanitized before SDK call.
+        chat_mock.return_value = {"message": {"role": "assistant", "content": "ok", "tool_calls": None}}
+        agent = _fake_agent(stream=False)
+        agent.turn.user_text = "bad\udcc3input"
+
+        state = Generate()
+        next_state = state.handle(agent, Event(EventType.TICK))
+
+        self.assertIsInstance(next_state, Cleanup)
+        sent_messages = chat_mock.call_args.kwargs["messages"]
+        self.assertNotIn("\udcc3", sent_messages[-1]["content"])
+
+    @patch("sena.agent.states.generate.ollama.chat")
     def test_no_tool_calls_sets_assistant_text_and_cleanup(self, chat_mock):
         # Verifies plain assistant responses go to Cleanup with emitted output.
         chat_mock.return_value = {"message": {"role": "assistant", "content": "Hello", "tool_calls": None}}
@@ -81,7 +95,7 @@ class TestGenerateState(unittest.TestCase):
         self.assertEqual(agent.turn.assistant_text, "Hello")
         agent.output.emit_text.assert_called_once_with("Hello")
 
-    @patch("zenbot.agent.states.generate.ollama.chat")
+    @patch("sena.agent.states.generate.ollama.chat")
     def test_tool_calls_transition_to_use_tools(self, chat_mock):
         # Verifies tool-call responses queue calls and transition to UseTools.
         chat_mock.return_value = {
@@ -99,6 +113,23 @@ class TestGenerateState(unittest.TestCase):
         self.assertIsInstance(next_state, UseTools)
         self.assertEqual(len(agent.turn.pending_tool_calls), 1)
         self.assertEqual(agent.turn.pending_tool_calls[0]["tool_name"], "datetime")
+
+    @patch("sena.agent.states.generate.ollama.chat")
+    def test_stream_failure_emits_error_and_returns_cleanup(self, chat_mock):
+        # Verifies streaming transport failures are handled without crashing process.
+        def _raising_stream():
+            raise ConnectionError("down")
+            yield
+
+        chat_mock.return_value = _raising_stream()
+        agent = _fake_agent(stream=True)
+
+        state = Generate()
+        next_state = state.handle(agent, Event(EventType.TICK))
+
+        self.assertIsInstance(next_state, Cleanup)
+        self.assertIn("could not reach Ollama", agent.turn.assistant_text)
+        agent.output.emit_text.assert_called_once()
 
 
 class TestUseToolsState(unittest.TestCase):
@@ -151,7 +182,7 @@ class TestUseToolsState(unittest.TestCase):
 
 
 class TestTaskState(unittest.TestCase):
-    @patch("zenbot.agent.workers.handlers.due_reminder.ollama.chat")
+    @patch("sena.agent.workers.handlers.due_reminder.ollama.chat")
     def test_reminder_due_generates_message(self, chat_mock):
         # Verifies Task generates a friendly reminder message.
         # (Reminder is already marked completed by the worker, not deleted here)
@@ -173,7 +204,7 @@ class TestTaskState(unittest.TestCase):
         self.assertEqual(agent.turn.assistant_text, "Hey, it's time to drink water.")
         agent.output.emit_text.assert_called_once_with("Hey, it's time to drink water.")
 
-    @patch("zenbot.agent.workers.handlers.due_reminder.ollama.chat")
+    @patch("sena.agent.workers.handlers.due_reminder.ollama.chat")
     def test_reminder_without_payload_transitions_to_cleanup(self, chat_mock):
         # Verifies Task transitions to Cleanup when no reminder payload is set.
         agent = _fake_agent(stream=False)

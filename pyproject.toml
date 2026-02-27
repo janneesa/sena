@@ -1,5 +1,5 @@
 [project]
-name = "zenbot"
+name = "sena"
 version = "0.1.0"
 description = "Local-first synchronous state-machine AI agent project"
 readme = "README.md"

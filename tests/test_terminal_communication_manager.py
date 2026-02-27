@@ -2,8 +2,8 @@ import unittest
 from types import SimpleNamespace
 from unittest.mock import call, patch
 
-from zenbot.agent.types import EventType
-from zenbot.agent.workers.terminal_communication_manager import BUSY_MESSAGE, TerminalCommunicationManager
+from sena.agent.types import EventType
+from sena.agent.workers.terminal_communication_manager import BUSY_MESSAGE, TerminalCommunicationManager
 
 
 class TestTerminalCommunicationManager(unittest.TestCase):

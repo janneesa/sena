@@ -3,9 +3,9 @@ import unittest
 from pathlib import Path
 from types import SimpleNamespace
 
-from zenbot.agent.workers import ReminderWorker
-from zenbot.agent.types import EventType
-from zenbot.agent.utils.database import DatabaseHelper
+from sena.agent.workers import ReminderWorker
+from sena.agent.types import EventType
+from sena.agent.utils.database import DatabaseHelper
 
 
 class TestReminderWorker(unittest.TestCase):
