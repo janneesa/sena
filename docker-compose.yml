@@ -1,0 +1,30 @@
+services:
+  zenbot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: zenbot:local
+    init: true
+    working_dir: /app
+    user: "${UID:-10001}:${GID:-10001}"
+    command: ["python", "-m", "zenbot"]
+    env_file:
+      - .env
+    environment:
+      WORKSPACE_ROOT: /workspace
+      TZ: "${TZ:-Europe/Helsinki}"
+      OLLAMA_BASE_URL: "${OLLAMA_BASE_URL:-http://host.docker.internal:11434}"
+    volumes:
+      - ./workspace:/workspace
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    stdin_open: true
+    tty: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /run

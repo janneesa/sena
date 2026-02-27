@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
-from zenbot.agent.utils.helpers import get_project_root
+from zenbot.agent.utils.helpers import get_workspace_root
 
 
 class DatabaseHelper:
@@ -253,5 +253,9 @@ class DatabaseHelper:
 
 
 def get_database_path() -> Path:
-    """Return absolute path to `data/zenbot.db`."""
-    return get_project_root() / "data" / "zenbot.db"
+    """Return absolute path to `workspace/data/zenbot.db`.
+
+    Host mode defaults to <project_root>/workspace/data/zenbot.db.
+    Docker mode uses WORKSPACE_ROOT (for example /workspace/data/zenbot.db).
+    """
+    return get_workspace_root() / "data" / "zenbot.db"

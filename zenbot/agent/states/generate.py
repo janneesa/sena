@@ -6,7 +6,7 @@ import ollama
 
 from zenbot.agent.types import EventType
 from zenbot.agent.states.base import State
-from zenbot.agent.utils.json_utils import safe_parse_json
+from zenbot.agent.utils.json_utils import safe_parse_json, sanitize_for_transport
 from zenbot.agent.states.cleanup import Cleanup
 from zenbot.agent.utils.logging import get_logger
 
@@ -31,6 +31,8 @@ class Generate(State):
             agent.turn.llm_messages.append({"role": "user", "content": agent.turn.user_text})
             logger.debug("Generate initialized turn llm_messages from history")
 
+        agent.turn.llm_messages = sanitize_for_transport(agent.turn.llm_messages)
+
         tools = agent.toolbox.get_ollama_tool_functions()
         logger.debug(f"Generate calling LLM with {len(tools)} available tools")
 
@@ -50,7 +52,14 @@ class Generate(State):
             return Cleanup()
 
         if agent.settings.llm.stream:
-            response = self._process_streamed_response(agent, response)
+            try:
+                response = self._process_streamed_response(agent, response)
+            except Exception:
+                logger.exception("Generate failed while reading streamed response")
+                error_message = "Sorry, I could not reach Ollama. Please verify OLLAMA_BASE_URL and try again."
+                agent.turn.assistant_text = error_message
+                agent.output.emit_text(error_message)
+                return Cleanup()
         
         self._handle_response(agent, response)
 
@@ -81,21 +90,22 @@ class Generate(State):
         tool_calls = []
         stream_open = False
         
-        for chunk in response:
-            msg = chunk.get("message", {})
-            delta = msg.get("content", "")
-            if delta:
-                if not stream_open:
-                    agent.output.begin_stream()
-                    stream_open = True
-                agent.output.emit_stream_chunk(delta)
-                parts.append(delta)
-            chunk_tool_calls = msg.get("tool_calls") or []
-            if chunk_tool_calls:
-                tool_calls.extend(chunk_tool_calls)
-
-        if stream_open:
-            agent.output.end_stream()
+        try:
+            for chunk in response:
+                msg = chunk.get("message", {})
+                delta = msg.get("content", "")
+                if delta:
+                    if not stream_open:
+                        agent.output.begin_stream()
+                        stream_open = True
+                    agent.output.emit_stream_chunk(delta)
+                    parts.append(delta)
+                chunk_tool_calls = msg.get("tool_calls") or []
+                if chunk_tool_calls:
+                    tool_calls.extend(chunk_tool_calls)
+        finally:
+            if stream_open:
+                agent.output.end_stream()
 
         return {
             "message": {
@@ -139,6 +149,7 @@ class Generate(State):
                 )
             else:
                 logger.warning("Generate encountered tool call without function name")
+
 
 
 

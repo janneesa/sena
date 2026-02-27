@@ -47,6 +47,67 @@ uv sync
 uv run python -m zenbot
 ```
 
+## Running with Docker
+
+ZenBot can run as a hardened non-root container while preserving the host workflow above.
+
+### Docker Compose (recommended)
+
+Create your runtime env file (Docker reads this automatically):
+
+```bash
+cp .env.example .env
+```
+
+Build and run interactively:
+
+```bash
+docker compose build
+docker compose run --rm -it zenbot
+```
+
+Linux note (for bind-mount file ownership compatibility):
+
+```bash
+export UID=$(id -u)
+export GID=$(id -g)
+```
+
+The compose setup:
+- runs as a non-root user (`${UID:-10001}:${GID:-10001}`)
+- mounts `./workspace` to `/workspace`
+- sets `WORKSPACE_ROOT=/workspace`
+- sets container timezone via `TZ` (default `Europe/Helsinki`) for local reminder times
+- loads runtime environment values from `.env`
+- uses read-only root filesystem with writable `/tmp` and `/run` tmpfs mounts
+- drops all Linux capabilities and disables privilege escalation
+
+The default command is `python -m zenbot`, and you can override it for debugging, for example:
+
+```bash
+docker compose run --rm -it zenbot python -m unittest discover -s tests -v
+```
+
+Database persistence in Docker:
+- ZenBot stores SQLite at `/workspace/data/zenbot.db` when `WORKSPACE_ROOT=/workspace`.
+- Because `/workspace` is a bind mount to host `./workspace`, reminders persist across container restarts/removals.
+
+Database persistence on host:
+- ZenBot stores SQLite at `./workspace/data/zenbot.db` by default.
+- The `workspace` directory is created automatically on first run.
+
+### Ollama connectivity
+
+- Windows/macOS Docker Desktop: `http://host.docker.internal:11434` works by default.
+- Linux Docker Engine: use Docker 20.10+ with host-gateway support and add:
+  - `extra_hosts: ["host.docker.internal:host-gateway"]` in compose (already included).
+
+Any existing `ZENBOT_*` environment variables continue to work and can be passed via compose.
+
+For compose, prefer putting them in `.env` (copied from `.env.example`).
+
+You can change Docker reminder local time behavior by setting `TZ` in `.env` (for example `TZ=Europe/Helsinki`).
+
 ## Configuration
 
 Config precedence:
@@ -125,7 +186,7 @@ zenbot/
 │   ├── utils/            # Helpers and database
 │   └── workers/          # Background workers
 ├── config/               # default/local/system prompt
-└── data/                 # SQLite database
+└── workspace/            # Runtime data (SQLite, future user files)
 ```
 
 ## Notes

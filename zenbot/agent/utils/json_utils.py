@@ -33,6 +33,22 @@ def safe_parse_json(raw: Any) -> dict[str, Any]:
     return {}
 
 
+def sanitize_for_transport(value: Any) -> Any:
+    """Sanitize payload values to avoid invalid UTF-8 surrogate errors.
+
+    Docker/terminal combinations can occasionally produce lone surrogate code
+    points in input streams. Replace invalid code points before sending JSON
+    payloads to external APIs.
+    """
+    if isinstance(value, str):
+        return value.encode("utf-8", errors="replace").decode("utf-8")
+    if isinstance(value, list):
+        return [sanitize_for_transport(item) for item in value]
+    if isinstance(value, dict):
+        return {key: sanitize_for_transport(item) for key, item in value.items()}
+    return value
+
+
 def call_llm_with_format(
     model: str,
     messages: list[dict[str, Any]],

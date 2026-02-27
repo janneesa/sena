@@ -1,6 +1,7 @@
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from zenbot.agent.utils.database import DatabaseHelper, get_database_path
 
@@ -50,8 +51,15 @@ class TestDatabaseHelper(unittest.TestCase):
 
 
 class TestDatabasePath(unittest.TestCase):
-    def test_database_path_points_to_data_zenbot_db(self):
+    def test_database_path_points_to_workspace_data_zenbot_db(self):
         # Verifies helper resolves the expected default database path.
         path = get_database_path()
         self.assertEqual(path.name, "zenbot.db")
         self.assertEqual(path.parent.name, "data")
+        self.assertEqual(path.parent.parent.name, "workspace")
+
+    def test_database_path_uses_workspace_root_when_set(self):
+        # Verifies helper stores DB under WORKSPACE_ROOT when configured.
+        with patch.dict("os.environ", {"WORKSPACE_ROOT": "/workspace"}):
+            path = get_database_path()
+        self.assertEqual(path, Path("/workspace/data/zenbot.db"))

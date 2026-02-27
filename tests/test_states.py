@@ -69,6 +69,20 @@ class TestCleanupState(unittest.TestCase):
 
 class TestGenerateState(unittest.TestCase):
     @patch("zenbot.agent.states.generate.ollama.chat")
+    def test_sanitizes_surrogate_chars_before_chat(self, chat_mock):
+        # Verifies invalid surrogate code points are sanitized before SDK call.
+        chat_mock.return_value = {"message": {"role": "assistant", "content": "ok", "tool_calls": None}}
+        agent = _fake_agent(stream=False)
+        agent.turn.user_text = "bad\udcc3input"
+
+        state = Generate()
+        next_state = state.handle(agent, Event(EventType.TICK))
+
+        self.assertIsInstance(next_state, Cleanup)
+        sent_messages = chat_mock.call_args.kwargs["messages"]
+        self.assertNotIn("\udcc3", sent_messages[-1]["content"])
+
+    @patch("zenbot.agent.states.generate.ollama.chat")
     def test_no_tool_calls_sets_assistant_text_and_cleanup(self, chat_mock):
         # Verifies plain assistant responses go to Cleanup with emitted output.
         chat_mock.return_value = {"message": {"role": "assistant", "content": "Hello", "tool_calls": None}}
@@ -99,6 +113,23 @@ class TestGenerateState(unittest.TestCase):
         self.assertIsInstance(next_state, UseTools)
         self.assertEqual(len(agent.turn.pending_tool_calls), 1)
         self.assertEqual(agent.turn.pending_tool_calls[0]["tool_name"], "datetime")
+
+    @patch("zenbot.agent.states.generate.ollama.chat")
+    def test_stream_failure_emits_error_and_returns_cleanup(self, chat_mock):
+        # Verifies streaming transport failures are handled without crashing process.
+        def _raising_stream():
+            raise ConnectionError("down")
+            yield
+
+        chat_mock.return_value = _raising_stream()
+        agent = _fake_agent(stream=True)
+
+        state = Generate()
+        next_state = state.handle(agent, Event(EventType.TICK))
+
+        self.assertIsInstance(next_state, Cleanup)
+        self.assertIn("could not reach Ollama", agent.turn.assistant_text)
+        agent.output.emit_text.assert_called_once()
 
 
 class TestUseToolsState(unittest.TestCase):

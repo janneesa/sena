@@ -23,3 +23,6 @@ data/*.json
 
 # Configs
 config/system.md
+
+# Workspace files
+workspace/
