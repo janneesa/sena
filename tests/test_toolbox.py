@@ -2,8 +2,8 @@ import unittest
 
 from pydantic import BaseModel, Field
 
-from zenbot.agent.tools.base import Tool
-from zenbot.agent.tools.toolbox import Toolbox
+from sena.agent.tools.base import Tool
+from sena.agent.tools.toolbox import Toolbox
 
 
 class EchoArgs(BaseModel):

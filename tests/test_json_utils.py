@@ -3,7 +3,7 @@ from unittest.mock import patch
 
 from pydantic import BaseModel
 
-from zenbot.agent.utils.json_utils import call_llm_with_format, safe_parse_json
+from sena.agent.utils.json_utils import call_llm_with_format, safe_parse_json
 
 
 class _Schema(BaseModel):
@@ -29,7 +29,7 @@ class TestSafeParseJson(unittest.TestCase):
 
 
 class TestCallLlmWithFormat(unittest.TestCase):
-    @patch("zenbot.agent.utils.json_utils.ollama.chat")
+    @patch("sena.agent.utils.json_utils.ollama.chat")
     def test_returns_validated_model(self, chat_mock):
         # Verifies structured LLM output is validated into the schema model.
         chat_mock.return_value = {"message": {"content": '{"name":"Zen"}'}}
@@ -43,7 +43,7 @@ class TestCallLlmWithFormat(unittest.TestCase):
         self.assertIsNotNone(result)
         self.assertEqual(result.name, "Zen")
 
-    @patch("zenbot.agent.utils.json_utils.ollama.chat")
+    @patch("sena.agent.utils.json_utils.ollama.chat")
     def test_validation_failure_returns_none(self, chat_mock):
         # Verifies invalid structured output returns None instead of crashing.
         chat_mock.return_value = {"message": {"content": '{"wrong":"field"}'}}

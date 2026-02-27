@@ -1,13 +1,13 @@
 services:
-  zenbot:
+  sena:
     build:
       context: .
       dockerfile: Dockerfile
-    image: zenbot:local
+    image: sena:local
     init: true
     working_dir: /app
     user: "${UID:-10001}:${GID:-10001}"
-    command: ["python", "-m", "zenbot"]
+    command: ["python", "-m", "sena"]
     env_file:
       - .env
     environment:

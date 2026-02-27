@@ -4,7 +4,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from zenbot.agent.config import _parse_bool, load_settings
+from sena.agent.config import _parse_bool, load_settings
 
 
 class TestParseBool(unittest.TestCase):
@@ -51,7 +51,7 @@ reminder_poll_seconds = 30
 """.strip(),
             )
 
-            with patch("zenbot.agent.config._get_config_dir", return_value=config_dir):
+            with patch("sena.agent.config._get_config_dir", return_value=config_dir):
                 settings = load_settings()
 
             self.assertEqual(settings.llm.model, "qwen2.5:3b")
@@ -84,16 +84,16 @@ reminder_poll_seconds = 30
             )
 
             env = {
-                "ZENBOT_MODEL": "env-model",
-                "ZENBOT_STREAM": "true",
-                "ZENBOT_THINK": "true",
-                "ZENBOT_MAX_INTERNAL_STEPS": "12",
-                "ZENBOT_MAX_HISTORY_MESSAGES": "30",
-                "ZENBOT_REMINDER_POLL_SECONDS": "15",
-                "ZENBOT_DEBUG": "true",
+                "SENA_MODEL": "env-model",
+                "SENA_STREAM": "true",
+                "SENA_THINK": "true",
+                "SENA_MAX_INTERNAL_STEPS": "12",
+                "SENA_MAX_HISTORY_MESSAGES": "30",
+                "SENA_REMINDER_POLL_SECONDS": "15",
+                "SENA_DEBUG": "true",
             }
 
-            with patch("zenbot.agent.config._get_config_dir", return_value=config_dir), patch.dict(os.environ, env, clear=False):
+            with patch("sena.agent.config._get_config_dir", return_value=config_dir), patch.dict(os.environ, env, clear=False):
                 settings = load_settings()
 
             self.assertEqual(settings.llm.model, "env-model")
@@ -125,7 +125,7 @@ reminder_poll_seconds = 30
 """.strip(),
             )
 
-            with patch("zenbot.agent.config._get_config_dir", return_value=config_dir):
+            with patch("sena.agent.config._get_config_dir", return_value=config_dir):
                 with self.assertRaises(ValueError):
                     load_settings()
 
@@ -150,9 +150,9 @@ reminder_poll_seconds = 30
 """.strip(),
             )
 
-            with patch("zenbot.agent.config._get_config_dir", return_value=config_dir), patch.dict(
+            with patch("sena.agent.config._get_config_dir", return_value=config_dir), patch.dict(
                 os.environ,
-                {"ZENBOT_DEBUG": "notabool"},
+                {"SENA_DEBUG": "notabool"},
                 clear=False,
             ):
                 with self.assertRaises(ValueError):
@@ -179,6 +179,6 @@ reminder_poll_seconds = 0
 """.strip(),
             )
 
-            with patch("zenbot.agent.config._get_config_dir", return_value=config_dir):
+            with patch("sena.agent.config._get_config_dir", return_value=config_dir):
                 with self.assertRaises(ValueError):
                     load_settings()

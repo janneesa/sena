@@ -2,9 +2,9 @@ import unittest
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from zenbot.agent.agent import Agent
-from zenbot.agent.states.idle import Idle
-from zenbot.agent.types import Event, EventType
+from sena.agent.agent import Agent
+from sena.agent.states.idle import Idle
+from sena.agent.types import Event, EventType
 
 
 class _ReturnsIdleState:
@@ -28,7 +28,7 @@ class TestAgent(unittest.TestCase):
             agent=SimpleNamespace(max_internal_steps=max_steps, max_history_messages=max_history, debug=False),
         )
 
-    @patch("zenbot.agent.agent.get_system_instructions_path", return_value="d:/missing.md")
+    @patch("sena.agent.agent.get_system_instructions_path", return_value="d:/missing.md")
     def test_commit_turn_appends_and_resets(self, _path_mock):
         # Verifies commit_turn writes user/assistant messages and clears turn state.
         agent = Agent(settings=self._settings())
@@ -44,7 +44,7 @@ class TestAgent(unittest.TestCase):
         self.assertEqual(agent.turn.user_text, "")
         self.assertEqual(agent.turn.assistant_text, "")
 
-    @patch("zenbot.agent.agent.get_system_instructions_path", return_value="d:/missing.md")
+    @patch("sena.agent.agent.get_system_instructions_path", return_value="d:/missing.md")
     def test_trim_history_keeps_system_and_recent(self, _path_mock):
         # Verifies history trimming keeps the system prompt and newest messages only.
         agent = Agent(settings=self._settings(max_history=2))
@@ -62,7 +62,7 @@ class TestAgent(unittest.TestCase):
         self.assertEqual(agent.messages[1]["content"], "u2")
         self.assertEqual(agent.messages[2]["content"], "a2")
 
-    @patch("zenbot.agent.agent.get_system_instructions_path", return_value="d:/missing.md")
+    @patch("sena.agent.agent.get_system_instructions_path", return_value="d:/missing.md")
     def test_dispatch_sets_next_state(self, _path_mock):
         # Verifies dispatch stores a pending next state.
         agent = Agent(settings=self._settings())
@@ -70,7 +70,7 @@ class TestAgent(unittest.TestCase):
         agent.dispatch(event)
         self.assertIsNotNone(agent._next_state)
 
-    @patch("zenbot.agent.agent.get_system_instructions_path", return_value="d:/missing.md")
+    @patch("sena.agent.agent.get_system_instructions_path", return_value="d:/missing.md")
     def test_drain_stops_at_idle(self, _path_mock):
         # Verifies drain stops cleanly once Idle state is reached.
         agent = Agent(settings=self._settings(max_steps=3))
@@ -79,7 +79,7 @@ class TestAgent(unittest.TestCase):
         self.assertIsInstance(agent.state, Idle)
         self.assertIsNone(agent._next_state)
 
-    @patch("zenbot.agent.agent.get_system_instructions_path", return_value="d:/missing.md")
+    @patch("sena.agent.agent.get_system_instructions_path", return_value="d:/missing.md")
     def test_commit_turn_resets_when_user_text_missing(self, _path_mock):
         # Verifies reminder-only turns are reset even when not committed to history.
         agent = Agent(settings=self._settings())
@@ -95,7 +95,7 @@ class TestAgent(unittest.TestCase):
         self.assertEqual(agent.turn.assistant_text, "")
         self.assertIsNone(agent.turn.reminder_due_payload)
 
-    @patch("zenbot.agent.agent.get_system_instructions_path", return_value="d:/missing.md")
+    @patch("sena.agent.agent.get_system_instructions_path", return_value="d:/missing.md")
     def test_process_next_queued_event_dispatches_and_drains(self, _path_mock):
         # Verifies queued events run through dispatch + drain.
         agent = Agent(settings=self._settings())
@@ -107,7 +107,7 @@ class TestAgent(unittest.TestCase):
         dispatch_mock.assert_called_once()
         drain_mock.assert_called_once()
 
-    @patch("zenbot.agent.agent.get_system_instructions_path", return_value="d:/missing.md")
+    @patch("sena.agent.agent.get_system_instructions_path", return_value="d:/missing.md")
     def test_drain_applies_pending_idle_when_limit_reached(self, _path_mock):
         # Verifies drain does not get stuck when step budget is hit with next_state=Idle.
         agent = Agent(settings=self._settings(max_steps=1))
@@ -118,7 +118,7 @@ class TestAgent(unittest.TestCase):
         self.assertIsInstance(agent.state, Idle)
         self.assertIsNone(agent._next_state)
 
-    @patch("zenbot.agent.agent.get_system_instructions_path", return_value="d:/missing.md")
+    @patch("sena.agent.agent.get_system_instructions_path", return_value="d:/missing.md")
     def test_drain_recovers_to_idle_after_true_step_limit_overrun(self, _path_mock):
         # Verifies hard-guard recovery when internal loop exceeds allowed steps.
         agent = Agent(settings=self._settings(max_steps=1))

@@ -1,11 +1,7 @@
-# ZenBot (ongoing)
+# SENA - Self-Hosted Neural Assistant (ongoing)
 
-ZenBot is a synchronous state-machine AI agent project built with Python and Ollama.
+Sena is a synchronous state-machine AI agent project built with Python and Ollama.
 This project explores how AI agents and large language models can be integrated into practical software applications through a synchronous, state-machine architecture.
-
-<video loop autoplay muted playsinline>
-	<source src="media/zenbot_terminal_demo.mp4" type="video/mp4">
-</video>
 
 ## Philosophy
 
@@ -24,13 +20,13 @@ This project explores how AI agents and large language models can be integrated 
 
 ## Data Models (where they are used)
 
-- `zenbot/agent/types.py`
+- `sena/agent/types.py`
   - `EventType` / `Event`: queued inputs to the state machine (`USER_MESSAGE`, `REMINDER_DUE`, `TICK`).
   - `Turn`: temporary per-turn working state for `Generate` and `UseTools`.
-- Tool-specific Pydantic models in `zenbot/agent/tools/*`
+- Tool-specific Pydantic models in `sena/agent/tools/*`
   - `*Args` models validate tool call inputs.
   - Extraction/confirmation models (for example `ReminderRequest`, `ReminderMatch`) validate structured LLM JSON before any DB writes.
-- Config dataclasses in `zenbot/agent/config.py`
+- Config dataclasses in `sena/agent/config.py`
   - `Settings`, `LLMSettings`, `AgentSettings` are immutable startup config loaded once.
 
 ## Quick Start
@@ -44,12 +40,12 @@ Install and run:
 
 ```bash
 uv sync
-uv run python -m zenbot
+uv run python -m sena
 ```
 
 ## Running with Docker
 
-ZenBot can run as a hardened non-root container while preserving the host workflow above.
+Sena can run as a hardened non-root container while preserving the host workflow above.
 
 ### Docker Compose (recommended)
 
@@ -63,7 +59,7 @@ Build and run interactively:
 
 ```bash
 docker compose build
-docker compose run --rm -it zenbot
+docker compose run --rm -it sena
 ```
 
 Linux note (for bind-mount file ownership compatibility):
@@ -82,18 +78,18 @@ The compose setup:
 - uses read-only root filesystem with writable `/tmp` and `/run` tmpfs mounts
 - drops all Linux capabilities and disables privilege escalation
 
-The default command is `python -m zenbot`, and you can override it for debugging, for example:
+The default command is `python -m sena`, and you can override it for debugging, for example:
 
 ```bash
-docker compose run --rm -it zenbot python -m unittest discover -s tests -v
+docker compose run --rm -it sena python -m unittest discover -s tests -v
 ```
 
 Database persistence in Docker:
-- ZenBot stores SQLite at `/workspace/data/zenbot.db` when `WORKSPACE_ROOT=/workspace`.
+- Sena stores SQLite at `/workspace/data/sena.db` when `WORKSPACE_ROOT=/workspace`.
 - Because `/workspace` is a bind mount to host `./workspace`, reminders persist across container restarts/removals.
 
 Database persistence on host:
-- ZenBot stores SQLite at `./workspace/data/zenbot.db` by default.
+- Sena stores SQLite at `./workspace/data/sena.db` by default.
 - The `workspace` directory is created automatically on first run.
 
 ### Ollama connectivity
@@ -102,7 +98,7 @@ Database persistence on host:
 - Linux Docker Engine: use Docker 20.10+ with host-gateway support and add:
   - `extra_hosts: ["host.docker.internal:host-gateway"]` in compose (already included).
 
-Any existing `ZENBOT_*` environment variables continue to work and can be passed via compose.
+Any existing `SENA_*` environment variables continue to work and can be passed via compose.
 
 For compose, prefer putting them in `.env` (copied from `.env.example`).
 
@@ -179,7 +175,7 @@ Python standard library (core usage):
 ## Project Structure
 
 ```
-zenbot/
+sena/
 ├── agent/
 │   ├── states/           # State implementations
 │   ├── tools/            # Built-in tools

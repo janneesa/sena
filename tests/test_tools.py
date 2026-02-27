@@ -5,21 +5,21 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from zenbot.agent.tools.datetime_tool import DateTimeArgs, DateTimeTool
-from zenbot.agent.tools.delete_reminder_tool import (
+from sena.agent.tools.datetime_tool import DateTimeArgs, DateTimeTool
+from sena.agent.tools.delete_reminder_tool import (
     DeleteConfirmation,
     DeleteReminderArgs,
     DeleteReminderTool,
     ReminderMatch,
 )
-from zenbot.agent.tools.list_reminders_tool import ListRemindersArgs, ListRemindersTool
-from zenbot.agent.tools.set_reminder_tool import (
+from sena.agent.tools.list_reminders_tool import ListRemindersArgs, ListRemindersTool
+from sena.agent.tools.set_reminder_tool import (
     ReminderConfirmation,
     ReminderRequest,
     SetReminderArgs,
     SetReminderTool,
 )
-from zenbot.agent.utils.datetime_utils import format_reminder_when
+from sena.agent.utils.datetime_utils import format_reminder_when
 
 
 class TestDateTimeTool(unittest.TestCase):
@@ -35,7 +35,7 @@ class TestListRemindersTool(unittest.TestCase):
     def test_run_empty_returns_message(self):
         # Verifies list tool returns a friendly empty-state response.
         with tempfile.TemporaryDirectory() as tmp, patch(
-            "zenbot.agent.tools.list_reminders_tool.get_database_path",
+            "sena.agent.tools.list_reminders_tool.get_database_path",
             return_value=Path(tmp) / "test.db",
         ):
             tool = ListRemindersTool()
@@ -47,7 +47,7 @@ class TestListRemindersTool(unittest.TestCase):
     def test_format_when_for_display_today_tomorrow_weekday(self):
         # Verifies reminder labels render as Today/Tomorrow/Weekday with 24-hour time.
         with tempfile.TemporaryDirectory() as tmp, patch(
-            "zenbot.agent.tools.list_reminders_tool.get_database_path",
+            "sena.agent.tools.list_reminders_tool.get_database_path",
             return_value=Path(tmp) / "test.db",
         ):
             tool = ListRemindersTool()
@@ -77,7 +77,7 @@ class TestSetReminderTool(unittest.TestCase):
     def test_run_success(self):
         # Verifies set-reminder workflow: extract, parse, resolve, combine, save, confirm.
         with tempfile.TemporaryDirectory() as tmp, patch(
-            "zenbot.agent.tools.set_reminder_tool.get_database_path",
+            "sena.agent.tools.set_reminder_tool.get_database_path",
             return_value=Path(tmp) / "test.db",
         ):
             tool = SetReminderTool()
@@ -102,10 +102,10 @@ class TestSetReminderTool(unittest.TestCase):
     def test_extract_reminder_request_calls_llm_helper(self):
         # Verifies reminder extraction delegates to structured LLM helper.
         with tempfile.TemporaryDirectory() as tmp, patch(
-            "zenbot.agent.tools.set_reminder_tool.get_database_path",
+            "sena.agent.tools.set_reminder_tool.get_database_path",
             return_value=Path(tmp) / "test.db",
         ), patch(
-            "zenbot.agent.tools.set_reminder_tool.call_llm_with_format",
+            "sena.agent.tools.set_reminder_tool.call_llm_with_format",
             return_value=ReminderRequest(task="drink", time="9:15", intended_date="today", notes=None),
         ) as helper_mock:
             tool = SetReminderTool()
@@ -118,7 +118,7 @@ class TestSetReminderTool(unittest.TestCase):
     def test_parse_time_hh_mm(self):
         # Verifies parsing of HH:MM format times.
         with tempfile.TemporaryDirectory() as tmp, patch(
-            "zenbot.agent.tools.set_reminder_tool.get_database_path",
+            "sena.agent.tools.set_reminder_tool.get_database_path",
             return_value=Path(tmp) / "test.db",
         ):
             tool = SetReminderTool()
@@ -130,7 +130,7 @@ class TestSetReminderTool(unittest.TestCase):
     def test_parse_time_with_am_pm(self):
         # Verifies parsing of time with AM/PM.
         with tempfile.TemporaryDirectory() as tmp, patch(
-            "zenbot.agent.tools.set_reminder_tool.get_database_path",
+            "sena.agent.tools.set_reminder_tool.get_database_path",
             return_value=Path(tmp) / "test.db",
         ):
             tool = SetReminderTool()
@@ -142,7 +142,7 @@ class TestSetReminderTool(unittest.TestCase):
     def test_parse_time_invalid_returns_none(self):
         # Verifies invalid time strings return None.
         with tempfile.TemporaryDirectory() as tmp, patch(
-            "zenbot.agent.tools.set_reminder_tool.get_database_path",
+            "sena.agent.tools.set_reminder_tool.get_database_path",
             return_value=Path(tmp) / "test.db",
         ):
             tool = SetReminderTool()
@@ -154,7 +154,7 @@ class TestSetReminderTool(unittest.TestCase):
     def test_resolve_intended_date_today(self):
         # Verifies 'today' resolves to current date.
         with tempfile.TemporaryDirectory() as tmp, patch(
-            "zenbot.agent.tools.set_reminder_tool.get_database_path",
+            "sena.agent.tools.set_reminder_tool.get_database_path",
             return_value=Path(tmp) / "test.db",
         ):
             tool = SetReminderTool()
@@ -166,7 +166,7 @@ class TestSetReminderTool(unittest.TestCase):
     def test_resolve_intended_date_tomorrow(self):
         # Verifies 'tomorrow' resolves to next day.
         with tempfile.TemporaryDirectory() as tmp, patch(
-            "zenbot.agent.tools.set_reminder_tool.get_database_path",
+            "sena.agent.tools.set_reminder_tool.get_database_path",
             return_value=Path(tmp) / "test.db",
         ):
             tool = SetReminderTool()
@@ -179,7 +179,7 @@ class TestSetReminderTool(unittest.TestCase):
     def test_resolve_intended_date_weekday(self):
         # Verifies weekday names resolve to upcoming weekday.
         with tempfile.TemporaryDirectory() as tmp, patch(
-            "zenbot.agent.tools.set_reminder_tool.get_database_path",
+            "sena.agent.tools.set_reminder_tool.get_database_path",
             return_value=Path(tmp) / "test.db",
         ):
             tool = SetReminderTool()
@@ -191,7 +191,7 @@ class TestSetReminderTool(unittest.TestCase):
     def test_resolve_intended_date_invalid_returns_none(self):
         # Verifies invalid date expressions return None.
         with tempfile.TemporaryDirectory() as tmp, patch(
-            "zenbot.agent.tools.set_reminder_tool.get_database_path",
+            "sena.agent.tools.set_reminder_tool.get_database_path",
             return_value=Path(tmp) / "test.db",
         ):
             tool = SetReminderTool()
@@ -202,7 +202,7 @@ class TestSetReminderTool(unittest.TestCase):
     def test_combine_date_and_time(self):
         # Verifies date and time are combined into ISO datetime.
         with tempfile.TemporaryDirectory() as tmp, patch(
-            "zenbot.agent.tools.set_reminder_tool.get_database_path",
+            "sena.agent.tools.set_reminder_tool.get_database_path",
             return_value=Path(tmp) / "test.db",
         ):
             tool = SetReminderTool()
@@ -218,10 +218,10 @@ class TestSetReminderTool(unittest.TestCase):
     def test_build_confirmation_fallback(self):
         # Verifies fallback confirmation is used when LLM confirmation fails.
         with tempfile.TemporaryDirectory() as tmp, patch(
-            "zenbot.agent.tools.set_reminder_tool.get_database_path",
+            "sena.agent.tools.set_reminder_tool.get_database_path",
             return_value=Path(tmp) / "test.db",
         ), patch(
-            "zenbot.agent.tools.set_reminder_tool.call_llm_with_format",
+            "sena.agent.tools.set_reminder_tool.call_llm_with_format",
             return_value=None,
         ):
             tool = SetReminderTool()
@@ -239,10 +239,10 @@ class TestSetReminderTool(unittest.TestCase):
     def test_build_confirmation_with_llm(self):
         # Verifies LLM confirmation is used when available.
         with tempfile.TemporaryDirectory() as tmp, patch(
-            "zenbot.agent.tools.set_reminder_tool.get_database_path",
+            "sena.agent.tools.set_reminder_tool.get_database_path",
             return_value=Path(tmp) / "test.db",
         ), patch(
-            "zenbot.agent.tools.set_reminder_tool.call_llm_with_format",
+            "sena.agent.tools.set_reminder_tool.call_llm_with_format",
             return_value=ReminderConfirmation(confirmation_message="Got it!"),
         ):
             tool = SetReminderTool()
@@ -264,7 +264,7 @@ class TestDeleteReminderTool(unittest.TestCase):
     def test_run_no_reminders_returns_error(self):
         # Verifies delete tool returns an error when there are no reminders.
         with tempfile.TemporaryDirectory() as tmp, patch(
-            "zenbot.agent.tools.delete_reminder_tool.get_database_path",
+            "sena.agent.tools.delete_reminder_tool.get_database_path",
             return_value=Path(tmp) / "test.db",
         ):
             tool = DeleteReminderTool()
@@ -276,7 +276,7 @@ class TestDeleteReminderTool(unittest.TestCase):
     def test_run_success(self):
         # Verifies delete workflow removes matched reminder and returns success payload.
         with tempfile.TemporaryDirectory() as tmp, patch(
-            "zenbot.agent.tools.delete_reminder_tool.get_database_path",
+            "sena.agent.tools.delete_reminder_tool.get_database_path",
             return_value=Path(tmp) / "test.db",
         ):
             tool = DeleteReminderTool()
@@ -300,10 +300,10 @@ class TestDeleteReminderTool(unittest.TestCase):
     def test_match_reminder_calls_llm_helper(self):
         # Verifies reminder matching delegates to structured LLM helper.
         with tempfile.TemporaryDirectory() as tmp, patch(
-            "zenbot.agent.tools.delete_reminder_tool.get_database_path",
+            "sena.agent.tools.delete_reminder_tool.get_database_path",
             return_value=Path(tmp) / "test.db",
         ), patch(
-            "zenbot.agent.tools.delete_reminder_tool.call_llm_with_format",
+            "sena.agent.tools.delete_reminder_tool.call_llm_with_format",
             return_value=ReminderMatch(reminder_id="id1", confidence="high", reason=None),
         ) as helper_mock:
             tool = DeleteReminderTool()
@@ -316,10 +316,10 @@ class TestDeleteReminderTool(unittest.TestCase):
     def test_build_confirmation_fallback(self):
         # Verifies fallback deletion confirmation text is used when LLM fails.
         with tempfile.TemporaryDirectory() as tmp, patch(
-            "zenbot.agent.tools.delete_reminder_tool.get_database_path",
+            "sena.agent.tools.delete_reminder_tool.get_database_path",
             return_value=Path(tmp) / "test.db",
         ), patch(
-            "zenbot.agent.tools.delete_reminder_tool.call_llm_with_format",
+            "sena.agent.tools.delete_reminder_tool.call_llm_with_format",
             return_value=None,
         ):
             tool = DeleteReminderTool()
@@ -331,10 +331,10 @@ class TestDeleteReminderTool(unittest.TestCase):
     def test_build_confirmation_with_llm(self):
         # Verifies LLM-provided deletion confirmation is returned when available.
         with tempfile.TemporaryDirectory() as tmp, patch(
-            "zenbot.agent.tools.delete_reminder_tool.get_database_path",
+            "sena.agent.tools.delete_reminder_tool.get_database_path",
             return_value=Path(tmp) / "test.db",
         ), patch(
-            "zenbot.agent.tools.delete_reminder_tool.call_llm_with_format",
+            "sena.agent.tools.delete_reminder_tool.call_llm_with_format",
             return_value=DeleteConfirmation(confirmation_message="Removed"),
         ):
             tool = DeleteReminderTool()

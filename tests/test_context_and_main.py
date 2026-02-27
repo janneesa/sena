@@ -7,9 +7,9 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
-import zenbot.__main__ as app_main
-from zenbot.agent.context import load_system_message
-from zenbot.agent.types import Event, EventType
+import sena.__main__ as app_main
+from sena.agent.context import load_system_message
+from sena.agent.types import Event, EventType
 
 
 class TestContextBuilder(unittest.TestCase):
@@ -59,8 +59,8 @@ class TestMain(unittest.TestCase):
             app_main._configure_ollama_endpoint()
             self.assertEqual(os.environ.get("OLLAMA_HOST"), "http://existing:11434")
 
-    @patch("zenbot.runtime.signal.signal")
-    @patch("zenbot.runtime.signal.getsignal")
+    @patch("sena.runtime.signal.signal")
+    @patch("sena.runtime.signal.getsignal")
     def test_install_signal_handlers_sets_stop_event_on_signal(self, getsignal_mock, signal_mock):
         # Verifies SIGINT/SIGTERM handlers request graceful shutdown.
         stop_event = threading.Event()
@@ -76,7 +76,7 @@ class TestMain(unittest.TestCase):
         sigint_handler(signal.SIGINT, None)
         self.assertTrue(stop_event.is_set())
 
-    @patch("zenbot.runtime.signal.signal")
+    @patch("sena.runtime.signal.signal")
     def test_restore_signal_handlers(self, signal_mock):
         # Verifies previous handlers are restored after shutdown.
         previous = {
@@ -89,10 +89,10 @@ class TestMain(unittest.TestCase):
         signal_mock.assert_any_call(signal.SIGINT, signal.SIG_DFL)
         signal_mock.assert_any_call(signal.SIGTERM, signal.SIG_IGN)
 
-    @patch("zenbot.__main__.Agent")
-    @patch("zenbot.__main__.ReminderWorker")
-    @patch("zenbot.__main__.DatabaseHelper")
-    @patch("zenbot.__main__.load_settings")
+    @patch("sena.__main__.Agent")
+    @patch("sena.__main__.ReminderWorker")
+    @patch("sena.__main__.DatabaseHelper")
+    @patch("sena.__main__.load_settings")
     def test_main_dispatches_user_event(
         self,
         load_settings_mock,
@@ -111,7 +111,7 @@ class TestMain(unittest.TestCase):
         preset_stop_event = threading.Event()
         preset_stop_event.set()
 
-        with patch("zenbot.__main__.threading.Event", return_value=preset_stop_event):
+        with patch("sena.__main__.threading.Event", return_value=preset_stop_event):
             with (
                 patch.object(app_main.terminal_communication_manager, "start") as start_mock,
                 patch.object(app_main.terminal_communication_manager, "stop") as stop_mock,
@@ -127,7 +127,7 @@ class TestMain(unittest.TestCase):
 
                 start_mock.assert_called_once()
                 stop_mock.assert_called_once()
-                emit_text_mock.assert_any_call("ZenBot (type 'exit' to quit)")
+                emit_text_mock.assert_any_call("Sena (type 'exit' to quit)")
 
         self.assertEqual(agent_instance.enqueue_event.call_count, 1)
         event = agent_instance.enqueue_event.call_args[0][0]
@@ -137,7 +137,7 @@ class TestMain(unittest.TestCase):
         worker_instance.start.assert_called_once()
         worker_instance.stop.assert_called_once()
 
-    @patch("zenbot.__main__.load_settings", side_effect=RuntimeError("bad config"))
+    @patch("sena.__main__.load_settings", side_effect=RuntimeError("bad config"))
     def test_main_prints_config_error(self, _load_settings_mock):
         # Verifies configuration failures are shown to the user.
         with patch.object(app_main.terminal_communication_manager, "emit_text") as emit_text_mock:

@@ -8,7 +8,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /build
 
 COPY pyproject.toml README.md ./
-COPY zenbot ./zenbot
+COPY sena ./sena
 
 RUN python -m venv /opt/venv \
     && /opt/venv/bin/pip install --no-cache-dir --upgrade pip \
@@ -23,18 +23,18 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     WORKSPACE_ROOT=/workspace \
     OLLAMA_BASE_URL=http://host.docker.internal:11434
 
-RUN groupadd --system --gid 10001 zenbot \
-    && useradd --system --uid 10001 --gid 10001 --create-home zenbot
+RUN groupadd --system --gid 10001 sena \
+    && useradd --system --uid 10001 --gid 10001 --create-home sena
 
 WORKDIR /app
 
 COPY --from=builder /opt/venv /opt/venv
-COPY zenbot /app/zenbot
+COPY sena /app/sena
 COPY config /app/config
 
 RUN mkdir -p /workspace /tmp /run \
-    && chown -R zenbot:zenbot /workspace /tmp /run
+    && chown -R sena:sena /workspace /tmp /run
 
-USER zenbot:zenbot
+USER sena:sena
 
-CMD ["python", "-m", "zenbot"]
+CMD ["python", "-m", "sena"]
